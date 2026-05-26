@@ -13,30 +13,41 @@ namespace TenseWatcher.Model
         public int ArtefactsCollected { get; private set; }
         public bool GameOver { get; private set; }
         public bool Victory { get; private set; }
+        public int TotalMoves { get; private set; }
 
         private int _playerTurns;
         private const int MaxAnxiety = 100;
         private const int ArtefactsToWin = 3;
         private readonly int _width;
         private readonly int _height;
+        private TileType[,] _contentUnderWatcher;
 
         public GameState(int width = 10, int height = 10)
         {
             _width = width;
             _height = height;
             Map = new TileType[width, height];
+            _contentUnderWatcher = new TileType[width, height];
 
             for (int x = 0; x < width; x++)
+            {
                 for (int y = 0; y < height; y++)
+                {
                     Map[x, y] = TileType.Empty;
+                    _contentUnderWatcher[x, y] = TileType.Empty;
+                }
+            }
 
             PlayerX = 0;
             PlayerY = 0;
             Map[PlayerX, PlayerY] = TileType.Player;
 
-            WatcherX = width - 1;
+            WatcherX = width - 2;
             WatcherY = height - 1;
             Map[WatcherX, WatcherY] = TileType.Watcher;
+            _contentUnderWatcher[WatcherX, WatcherY] = TileType.Empty;
+
+            Map[width - 1, height - 1] = TileType.Portal;
 
             Map[2, 2] = TileType.Artefact;
             Map[5, 5] = TileType.Artefact;
@@ -45,18 +56,19 @@ namespace TenseWatcher.Model
             Map[3, 3] = TileType.LightZone;
             Map[6, 7] = TileType.LightZone;
 
-            Map[9, 9] = TileType.Portal;
-
             Anxiety = 0;
             ArtefactsCollected = 0;
             GameOver = false;
             Victory = false;
             _playerTurns = 0;
+            TotalMoves = 0;
         }
 
         public bool TryMovePlayer(int dx, int dy)
         {
             if (GameOver || Victory) return false;
+
+            TotalMoves++;
 
             int newX = PlayerX + dx;
             int newY = PlayerY + dy;
@@ -66,8 +78,15 @@ namespace TenseWatcher.Model
 
             if (Map[newX, newY] == TileType.Watcher)
             {
-                IncreaseAnxiety(25);
+                IncreaseAnxiety(35);
                 if (!GameOver) MoveWatcher();
+                return false;
+            }
+
+            TileType targetContent = Map[newX, newY];
+
+            if (targetContent == TileType.Portal && ArtefactsCollected < ArtefactsToWin)
+            {
                 return false;
             }
 
@@ -75,27 +94,28 @@ namespace TenseWatcher.Model
             PlayerX = newX;
             PlayerY = newY;
 
-            if (Map[PlayerX, PlayerY] == TileType.Artefact)
+            if (targetContent == TileType.Artefact)
             {
                 ArtefactsCollected++;
-                Map[PlayerX, PlayerY] = TileType.Empty;
             }
-            else if (Map[PlayerX, PlayerY] == TileType.LightZone)
+            else if (targetContent == TileType.LightZone)
             {
                 Anxiety = Math.Max(0, Anxiety - 10);
+                Map[PlayerX, PlayerY] = TileType.LightZone;
             }
-            else if (Map[PlayerX, PlayerY] == TileType.Portal && ArtefactsCollected >= ArtefactsToWin)
+            else if (targetContent == TileType.Portal && ArtefactsCollected >= ArtefactsToWin)
             {
                 Victory = true;
                 return true;
             }
 
-            Map[PlayerX, PlayerY] = TileType.Player;
-
-            if (ArtefactsCollected >= ArtefactsToWin && Map[PlayerX, PlayerY] == TileType.Portal)
+            if (targetContent != TileType.LightZone)
             {
-                Victory = true;
-                return true;
+                Map[PlayerX, PlayerY] = TileType.Player;
+            }
+            else
+            {
+                Map[PlayerX, PlayerY] = TileType.Player;
             }
 
             _playerTurns++;
@@ -126,11 +146,18 @@ namespace TenseWatcher.Model
 
             if (Map[newX, newY] == TileType.Player)
             {
-                IncreaseAnxiety(25);
+                IncreaseAnxiety(35);
                 return;
             }
 
-            Map[WatcherX, WatcherY] = TileType.Empty;
+            if (Map[WatcherX, WatcherY] == TileType.Watcher)
+            {
+                Map[WatcherX, WatcherY] = _contentUnderWatcher[WatcherX, WatcherY];
+            }
+
+            TileType targetContent = Map[newX, newY];
+            _contentUnderWatcher[newX, newY] = targetContent;
+
             WatcherX = newX;
             WatcherY = newY;
             Map[WatcherX, WatcherY] = TileType.Watcher;
@@ -145,5 +172,8 @@ namespace TenseWatcher.Model
                 GameOver = true;
             }
         }
+
+        public int GetRequiredArtefacts() => ArtefactsToWin;
+        public int GetMaxAnxiety() => MaxAnxiety;
     }
 }
