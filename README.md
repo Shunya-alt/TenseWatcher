@@ -67,7 +67,7 @@ Content/Sprites/ — папка с графическими файлами
 
   🚀 Запуск
 
-Клонируй репозиторий:
+Репозиторий:
 git clone https://github.com/Shunya-alt/TenseWatcher.git
 
 Открой TenseWatcherGame.sln в Visual Studio.
